@@ -376,7 +376,7 @@ onBeforeUnmount(stopTimer)
         </DataTable>
       </Panel>
 
-      <p class="hint">本页读数来自运行中的服务自身（JMX、Redis INFO 与 MySQL 全局状态）：容器内 CPU / 物理内存看到的是宿主机，磁盘、JVM 与连接池是容器和进程自己的；macOS 下「空闲内存」不含文件缓存，物理内存使用率会明显偏高，整机 CPU 在取不到瞬时值时按 1 分钟负载折算。服务器机房、联系人等静态台账在「基础设施 · 服务器信息」维护。</p>
+      <p class="hint">本页读数来自运行中的服务自身（JMX、Redis INFO 与 MySQL 全局状态）：容器内 CPU / 物理内存看到的是宿主机，磁盘、JVM 与连接池是容器和进程自己的；macOS 下「空闲内存」不含文件缓存，物理内存使用率会明显偏高，整机 CPU 在取不到瞬时值时按 1 分钟负载折算。</p>
     </div>
   </div>
 </template>
