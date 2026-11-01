@@ -36,14 +36,18 @@ final class TestAuthClient {
                 MAP_TYPE
         ).getBody());
 
+        // 验证码接口只回图片，明文答案留在 Redis；测试通过关闭验证码开关绕过人机校验
+        boolean captchaEnabled = Boolean.parseBoolean(String.valueOf(captcha.get("captchaEnabled")));
+        assertThat(captchaEnabled).as("测试用例应运行在 scaffold.security.captcha.enabled=false 下").isFalse();
+
         return restTemplate.exchange(
                 "/api/auth/login",
                 HttpMethod.POST,
                 new HttpEntity<>(Map.of(
                         "username", username,
                         "password", password,
-                        "captcha", captcha.get("code"),
-                        "captchaUuid", captcha.get("uuid")
+                        "captcha", "",
+                        "captchaUuid", String.valueOf(captcha.getOrDefault("uuid", ""))
                 )),
                 MAP_TYPE
         );

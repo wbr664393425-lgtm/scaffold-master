@@ -29,13 +29,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {
             String token = authorization.substring(7);
-            String username = jwtService.parseUsername(token);
+            LoginUser principal = jwtService.parsePrincipal(token);
+            String username = principal == null ? null : principal.username();
             boolean activeToken = username != null && tokenStore.usernameOf(token)
                     .map(username::equals)
                     .orElse(false);
             if (activeToken && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(username, token, List.of());
+                // details 承载用户ID等令牌声明，供 SecurityUtils 读取；principal 保持为账号字符串
+                authentication.setDetails(principal);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }

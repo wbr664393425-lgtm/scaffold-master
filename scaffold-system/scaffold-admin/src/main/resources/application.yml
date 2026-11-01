@@ -3,6 +3,10 @@ spring:
     name: scaffold-admin
   profiles:
     active: dev
+  jackson:
+    # 数据库连接把会话时区强制成 +08:00，Jackson 默认按 UTC 序列化 java.util.Date
+    # 会让日期整体早 8 小时（跨天的字段如注册日期会少一天），必须与会话时区对齐
+    time-zone: ${JSON_TIMEZONE:GMT+8}
 
 server:
   port: 8080
@@ -12,6 +16,10 @@ scaffold:
   jwt:
     secret: "${JWT_SECRET}"
     expires-seconds: 7200
+  security:
+    captcha:
+      # 关闭时登录不再校验图形验证码（集成测试用），生产保持开启
+      enabled: ${CAPTCHA_ENABLED:true}
 
 mybatis-plus:
   configuration:
