@@ -113,39 +113,67 @@ export function trackGlow(event: PointerEvent) {
 }
 
 /* ── 页面切换：离场退纵深，进场推进，子元素按阅读序显现 ── */
+
+/**
+ * 过渡容器是路由外框，显现类要落在页面根 .page 上（样式与首屏还原都以它为锚点）；
+ * 页面根不是 .page 时退回容器本身。
+ */
+function pageRootOf(el: Element): HTMLElement | null {
+  if (!el || el.nodeType !== 1) return null
+  const node = el as HTMLElement
+  if (node.classList.contains('page')) return node
+  return node.querySelector<HTMLElement>(':scope > .page') ?? node
+}
+
 export function pageLeave(el: Element, done: () => void) {
+  const page = pageRootOf(el)
   // out-in 模式下同步调用 done 会让 Vue 在补丁过程中重渲染，必须推迟到本轮之后
-  if (skipMotion()) {
+  if (!page || skipMotion()) {
     setTimeout(done, 0)
     return
   }
-  gsap.to(el, {
-    opacity: 0,
-    scale: 0.988,
-    duration: DUR.pageOut,
-    ease: EASE.exit,
-    onComplete: done,
-  })
+  let settled = false
+  const finish = () => {
+    if (settled) return
+    settled = true
+    done()
+  }
+  gsap.to(page, { opacity: 0, scale: 0.988, duration: DUR.pageOut, ease: EASE.exit, onComplete: finish })
+  // 补间被打断（节点提前卸载等）也要放行，否则 out-in 卡死、新页面永远进不来
+  setTimeout(finish, (DUR.pageOut + 0.5) * 1000)
 }
 
 export function pageEnter(el: Element, done: () => void) {
-  const page = el as HTMLElement
-  if (skipMotion()) {
-    page.classList.add('is-entrance-ready')
+  const page = pageRootOf(el)
+  if (!page || skipMotion() || page.classList.contains('is-entrance-ready')) {
+    page?.classList.add('is-entrance-ready')
     return done()
   }
   const items = page.querySelectorAll('.reveal')
   const cards = page.querySelectorAll('.bento')
+  let settled = false
+  const finish = () => {
+    if (settled) return
+    settled = true
+    gsap.set(page, { clearProps: 'transform' })
+    done()
+  }
   // 隐藏态写在时间轴开头的 set 里，内部只用 to 推进
   gsap.set(page, { opacity: 1, scale: 0.994 })
-  gsap.set(items, { opacity: 0, y: 12 })
-  gsap.set(cards, { opacity: 0, y: 18 })
+  if (items.length) gsap.set(items, { opacity: 0, y: 12 })
+  if (cards.length) gsap.set(cards, { opacity: 0, y: 18 })
   page.classList.add('is-entrance-ready')
-  const tl = gsap.timeline({ onComplete: () => { gsap.set(page, { clearProps: 'transform' }); done() } })
+  const tl = gsap.timeline({ onComplete: finish })
   tl.to(page, { scale: 1, duration: DUR.pageIn, ease: EASE.glide }, 0)
-  tl.to(items, { opacity: 1, y: 0, duration: DUR.pageIn, ease: EASE.reveal, stagger: { each: 0.05, from: 'start' }, clearProps: 'transform' }, 0.04)
+  if (items.length) tl.to(items, { opacity: 1, y: 0, duration: DUR.pageIn, ease: EASE.reveal, stagger: { each: 0.05, from: 'start' }, clearProps: 'transform' }, 0.04)
   // 并列卡片从中间向两侧展开
   if (cards.length) tl.to(cards, { opacity: 1, y: 0, duration: 0.72, ease: EASE.reveal, stagger: { each: 0.045, from: 'center' }, clearProps: 'opacity,transform' }, 0.1)
+  // 兜底：时间轴被页面隐藏 / 提前卸载打断时，直接把内容落到终态
+  setTimeout(() => {
+    if (settled) return
+    gsap.set([page, ...Array.from(items), ...Array.from(cards)], { clearProps: 'opacity,transform' })
+    finish()
+  }, 2600)
 }
 
 /** 首屏页面（无过渡钩子时）：同样走一遍进场 */

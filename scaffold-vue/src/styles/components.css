@@ -382,7 +382,19 @@
 .table tbody tr:hover { background: var(--hover-bg); }
 .table tbody tr.is-selected { background: var(--blue-soft); }
 .table tbody tr:last-child td { border-bottom: 0; }
-.table .col-check { width: 44px; padding-right: 0; }
+/* 勾选列吸附在左侧：表格横向滚动时选择状态始终可见；min-width 兜住 auto 布局的收缩 */
+.table .col-check { width: 48px; min-width: 48px; padding-right: 0; }
+/* 勾选列吸附在左侧：表格横向滚动时选择状态始终可见 */
+.table th.col-check, .table td.col-check {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-solid);
+}
+.table th.col-check { z-index: 2; }
+.table tbody tr:hover td.col-check { background: linear-gradient(var(--hover-bg), var(--hover-bg)), var(--surface-solid); }
+.table tbody tr.is-selected td.col-check { background: linear-gradient(var(--blue-soft), var(--blue-soft)), var(--surface-solid); }
+.table-shell.is-hx-scrolled .col-check { box-shadow: inset -1px 0 0 var(--line); }
 .table .col-actions { text-align: right; white-space: nowrap; }
 /* 操作列吸附在右侧：表格横向滚动时行操作始终可见 */
 .table th.col-actions, .table td.col-actions { position: sticky; right: 0; z-index: 1; background: var(--surface-solid); box-shadow: inset 1px 0 0 var(--line); }

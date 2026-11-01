@@ -16,6 +16,8 @@ const props = withDefaults(defineProps<{
   height?: number
   unit?: string
   band?: [number, number] | null
+  /** 固定纵轴上限；不传则按峰值自适应。百分比一类的有界序列用它锁到 100 */
+  max?: number | null
   /** 节点圆点：自动（点数 ≤ 12 时全部显示，否则只显示末点） */
   dots?: boolean
   tone?: 'blue' | 'ink'
@@ -23,6 +25,7 @@ const props = withDefaults(defineProps<{
   height: 220,
   unit: '',
   band: null,
+  max: null,
   dots: true,
   tone: 'blue',
   primaryLabel: '数值',
@@ -46,6 +49,11 @@ function niceStep(raw: number) {
 }
 const scale = computed(() => {
   const peak = Math.max(1, ...props.values, ...(props.secondary ?? []))
+  // 有界序列（百分比等）固定上限，避免自适应把纵轴抬到 150% 这种读不通的刻度
+  if (props.max && props.max > 0) {
+    const step = Math.max(1, niceStep(props.max / 4))
+    return { step, max: Math.max(props.max, step) }
+  }
   const step = Math.max(1, niceStep((peak * 1.15) / 4))
   const max = step * Math.max(1, Math.ceil((peak * 1.15) / step))
   return { step, max }

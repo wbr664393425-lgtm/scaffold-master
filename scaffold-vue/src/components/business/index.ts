@@ -1,6 +1,8 @@
 export { default as ListPage } from './ListPage.vue'
 export { default as SearchForm } from './SearchForm.vue'
 export { default as FormDialog } from './FormDialog.vue'
+export { default as RowActions } from './RowActions.vue'
+export { default as RowMenuItem } from './RowMenuItem.vue'
 export { default as PermissionButton } from './PermissionButton.vue'
 export { default as DictSelect } from './DictSelect.vue'
 export { default as DictTag } from './DictTag.vue'

@@ -46,6 +46,10 @@ a:focus-visible,
 .soft { color: var(--ink-soft); }
 .faint { color: var(--ink-faint); }
 .ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 面板内说明文字：一句话讲清口径，不抢标题 */
+.hint { margin: 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.7; }
+/* 长标识（地址、报文 ID）允许在任意位置折行 */
+.break { word-break: break-all; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;

@@ -17,6 +17,8 @@ export interface HttpClient {
   put<T>(path: string, body?: unknown): Promise<T>
   delete<T>(path: string): Promise<T>
   download(path: string, query?: QueryParams): Promise<Blob>
+  /** 导出接口以 POST + 表单参数接收查询条件（沿用旧后端 $download.post 的传参方式） */
+  downloadForm(path: string, form?: QueryParams): Promise<Blob>
 }
 
 export type QueryParams = Record<string, string | number | boolean | null | undefined>
@@ -72,10 +74,26 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     if (token) headers.Authorization = `Bearer ${token}`
 
     const response = await fetcher(buildUrl(baseUrl, path, query), { method: 'GET', headers })
+    return readBlob(response, token, '下载失败')
+  }
+
+  async function downloadForm(path: string, form?: QueryParams): Promise<Blob> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    }
+    const token = tokenProvider()
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const response = await fetcher(buildUrl(baseUrl, path), { method: 'POST', headers, body: toQueryString(form ?? {}) })
+    return readBlob(response, token, '导出失败')
+  }
+
+  async function readBlob(response: Response, token: string | null, fallback: string): Promise<Blob> {
     if (!response.ok) {
       const payload = await parseJson<ApiResponse<unknown>>(response)
       if ((payload.code === 401 || response.status === 401) && token && token === tokenProvider()) unauthorizedHandler?.()
-      throw new ApiError(payload.message || '下载失败', payload.code || response.status, response.status, payload.traceId)
+      throw new ApiError(payload.message || fallback, payload.code || response.status, response.status, payload.traceId)
     }
     return response.blob()
   }
@@ -86,6 +104,7 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     put: (path, body) => request('PUT', path, body),
     delete: (path) => request('DELETE', path),
     download,
+    downloadForm,
   }
 }
 

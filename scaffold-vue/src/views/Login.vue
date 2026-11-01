@@ -17,12 +17,14 @@ const router = useRouter()
 const route = useRoute()
 
 const form = reactive({ username: '', password: '', captcha: '' })
+const year = new Date().getFullYear()
 const errors = ref<Partial<Record<keyof typeof form, string>>>({})
 const remember = ref(true)
 const submitting = ref(false)
 const formError = ref('')
-const captchaCode = ref('')
+const captchaImg = ref<string | null>(null)
 const captchaUuid = ref('')
+const captchaEnabled = ref(true)
 const captchaLoading = ref(false)
 const root = ref<HTMLElement | null>(null)
 const card = ref<HTMLElement | null>(null)
@@ -99,11 +101,12 @@ async function refreshCaptcha() {
   captchaLoading.value = true
   try {
     const res = await authApi.captcha()
+    captchaEnabled.value = res.captchaEnabled !== 'false'
     captchaUuid.value = res.uuid
-    captchaCode.value = res.code
+    captchaImg.value = res.img
   } catch {
     captchaUuid.value = ''
-    captchaCode.value = ''
+    captchaImg.value = null
     formError.value = '无法连接服务，请确认后端已启动'
   } finally {
     captchaLoading.value = false
@@ -116,7 +119,7 @@ async function submit() {
   errors.value = validate(form, {
     username: [required('请输入账号')],
     password: [required('请输入密码')],
-    captcha: [required('请输入验证码')],
+    captcha: captchaEnabled.value ? [required('请输入验证码')] : [],
   })
   if (Object.keys(errors.value).length) return
   submitting.value = true
@@ -213,12 +216,12 @@ onBeforeUnmount(() => {
 
       <div class="canvas-main">
         <div class="canvas-copy">
-          <span class="eyebrow hero-line">通用后台底座 · {{ APP.version }}</span>
+          <span class="eyebrow hero-line">{{ APP.platform.eyebrow }} · {{ APP.version }}</span>
           <h1 class="login-title">
-            <span class="hero-line">统一的后台底座，</span>
-            <span class="hero-line">专注业务本身。</span>
+            <span class="hero-line">{{ APP.platform.slogan[0] }}</span>
+            <span class="hero-line">{{ APP.platform.slogan[1] }}</span>
           </h1>
-          <p class="login-lead hero-line">用户、角色、菜单、部门、字典与审计开箱即用，新业务模块只需关注字段与流程。</p>
+          <p class="login-lead hero-line">{{ APP.platform.lead }}</p>
         </div>
 
         <!-- 实时时钟：秒针对应的刻度点亮，逐秒推进（导 Conduct） -->
@@ -255,7 +258,20 @@ onBeforeUnmount(() => {
           </li>
         </ul>
       </div>
-      <div class="login-foot">{{ APP.copyright }}</div>
+
+      <!-- 版权与备案：宽屏落在左侧画布底部，窄屏画布退化成这一条页脚 -->
+      <footer class="login-legal">
+        <span class="login-copyright">© {{ year }} {{ APP.company }}. All Rights Reserved.</span>
+        <span class="login-beian">
+          <a
+            v-for="item in APP.beian"
+            :key="item.text"
+            :href="item.link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >{{ item.text }}</a>
+        </span>
+      </footer>
     </section>
 
     <!-- 右：登录卡 -->
@@ -274,13 +290,11 @@ onBeforeUnmount(() => {
             <Field label="密码" :error="errors.password">
               <TextInput v-model="form.password" type="password" icon="lock" placeholder="请输入密码" autocomplete="current-password" :invalid="!!errors.password" />
             </Field>
-            <Field label="验证码" :error="errors.captcha">
+            <Field v-if="captchaEnabled" label="验证码" :error="errors.captcha">
               <div class="captcha-row">
                 <TextInput v-model="form.captcha" icon="shield" placeholder="请输入右侧字符" :maxlength="6" autocomplete="off" :invalid="!!errors.captcha" />
                 <button type="button" class="captcha-box m-groove" :disabled="captchaLoading" aria-label="看不清，换一张" title="看不清，换一张" @click="refreshCaptcha">
-                  <span v-if="captchaCode" class="captcha-code" aria-hidden="true">
-                    <span v-for="(ch, i) in captchaCode.split('')" :key="i" :style="{ rotate: `${(i % 2 ? 1 : -1) * (6 + i * 3)}deg` }">{{ ch }}</span>
-                  </span>
+                  <img v-if="captchaImg" :src="captchaImg" class="captcha-img" alt="图形验证码，点击可换一张" draggable="false">
                   <Icon v-else name="refresh" :size="16" />
                 </button>
               </div>
