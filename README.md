@@ -100,7 +100,7 @@ npm run build
 python3 scripts/session-regression.py
 ```
 
-浏览器回归脚本只创建并删除自己生成的测试角色和用户，不清空表；管理员密码可通过 `SCAFFOLD_TEST_PASSWORD` 覆盖。测试与构建成功不能代替业务页面验收。
+浏览器回归脚本只创建并删除自己生成的测试角色和用户，不清空表（用户与角色按逻辑删除，行会留在表里、`deleted` 置 1）；管理员密码可通过 `SCAFFOLD_TEST_PASSWORD` 覆盖。脚本无法读验证码图片，因此**要求后端以 `CAPTCHA_ENABLED=false` 启动**（与 `scaffold-admin` 的 surefire 同一口径），否则登录第一步就会失败。测试与构建成功不能代替业务页面验收。
 
 ## 许可证
 
