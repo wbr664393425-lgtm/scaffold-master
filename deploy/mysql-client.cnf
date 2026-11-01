@@ -1,0 +1,8 @@
+# 官方 mysql 镜像首次启动导入 /docker-entrypoint-initdb.d 时使用的客户端配置。
+# 容器 locale 为 C，mysql 客户端默认按 latin1 解析脚本字节，会把 UTF-8 中文二次编码存库；
+# 这里显式声明 utf8mb4，与 README 要求的 --default-character-set=utf8mb4 口径一致。
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4

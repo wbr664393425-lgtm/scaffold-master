@@ -13,7 +13,7 @@
 - 包名前缀：`com.scaffold`；启动类：`scaffold-system/scaffold-admin/src/main/java/com/scaffold/admin/ScaffoldAdminApplication.java`。
 - 配置：`scaffold-system/scaffold-admin/src/main/resources/application.yml`、`application-dev.yml`；前端代理：`scaffold-vue/vite.config.ts`。
 - 数据库初始化：`scaffold-system/sql/V1__init_schema.sql`、`V2__seed_data.sql`；开发工具：`scaffold-admin/src/main/java/com/scaffold/admin/util/DbInit.java`。
-- 入口规范：`README.md`、`AGENTS.md`、`DESIGN.md`；建筑与工作流已移除。
+- 入口规范：`README.md`、`AGENTS.md`、`DESIGN.md`；部署见 `docs/docker-deployment.md`；建筑与工作流已移除。
 
 ## 二、业务术语词典
 
@@ -72,6 +72,13 @@
 | 请求与会话 | `api/http.ts`、`api/session.ts`、`composables/auth.ts`、`router/index.ts` | 响应解包、存储、401 处理、动态路由与会话清理 |
 | 外观与动效 | `composables/appearance.ts`、`motion.ts`、`focus.ts` | 主题、密度、GSAP、浮层层级与焦点 |
 | 样式 | `styles/tokens.css`、`base.css`、`materials.css`、`components.css`、`instruments.css`、`layout.css`、`pages.css` | 顺序加载的七层样式 |
+
+| 部署链路 | 文件入口 | 用途 |
+| --- | --- | --- |
+| 服务编排 | `docker-compose.yml`、`.env.example` | 前端 nginx + 后端 + Redis 常驻，MySQL 在 `mysql` profile 内按需启用；后端对 MySQL 用 `depends_on` + `required: false` 的可选依赖，启用 profile 时等库健康、外部模式自动跳过，`DB_PORT`（后端连库端口）与 `MYSQL_HOST_PORT`（内置库宿主机映射端口）分用两个变量。操作与验证记录见 `docs/docker-deployment.md` |
+| 后端镜像 | `scaffold-system/Dockerfile`、`scaffold-system/.dockerignore` | `maven:3.9-eclipse-temurin-17` 构建 → `eclipse-temurin:17-jre-jammy` 运行；镜像内装 `curl` 专供健康检查，`ENTRYPOINT` 预留 `JAVA_OPTS` |
+| 前端镜像 | `scaffold-vue/Dockerfile`、`scaffold-vue/nginx.conf`、`scaffold-vue/.dockerignore` | `node:22-alpine` 跑 `npm run build`（含 `vue-tsc`）→ `nginx:1.27-alpine` 托管；`/api` 反代到 `backend:8080`，SPA 深链接回退 `index.html`，`/assets/` 长缓存 |
+| 内置 MySQL 字符集 | `deploy/mysql-client.cnf` | 官方镜像首次建卷导入 SQL 时客户端默认按 latin1 解析，中文会二次编码入库；该配置把 `[client]` 固定为 utf8mb4 |
 
 ## 四、场景剧本
 
