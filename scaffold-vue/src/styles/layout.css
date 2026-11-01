@@ -248,11 +248,14 @@
 
 .content {
   position: relative;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: clip;
+  /* 内容真超宽时由内容区兜底横滚，避免在深色外框处被直接裁掉 */
+  overflow-x: auto;
   overscroll-behavior: contain;
 }
+.route-frame { min-width: 0; }
 .page {
   padding: 26px 28px 40px;
   transform-origin: 50% 0;

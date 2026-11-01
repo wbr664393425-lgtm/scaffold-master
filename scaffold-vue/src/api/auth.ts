@@ -8,8 +8,11 @@ export interface LoginRequest {
 }
 
 export interface CaptchaResponse {
+  /** 后端验证码开关，关闭时前端不渲染验证码输入 */
+  captchaEnabled: string
   uuid: string
-  code: string
+  /** base64 PNG，已带 data:image/png;base64, 前缀；明文答案只存服务端 */
+  img: string | null
 }
 
 export interface LoginResponse {

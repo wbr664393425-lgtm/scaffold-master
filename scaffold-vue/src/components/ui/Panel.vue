@@ -2,6 +2,8 @@
 defineProps<{
   title?: string
   meta?: string
+  /** 内容自带内边距（描述列表、表单、说明文字）；表格类内容保持贴边时不传 */
+  padded?: boolean
 }>()
 </script>
 
@@ -16,6 +18,7 @@ defineProps<{
       </slot>
       <div v-if="$slots.tools" class="panel-tools"><slot name="tools" /></div>
     </header>
-    <slot />
+    <div v-if="padded" class="panel-body"><slot /></div>
+    <slot v-else />
   </section>
 </template>

@@ -13,6 +13,7 @@ export const ICON_PATHS: Record<string, string> = {
   dict: 'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5v-15zm0 15A1.5 1.5 0 0 0 6.5 21H19M9 7h6m-6 4h4',
   log: 'M6 3h9l4 4v14H6V3zm8 0v5h5M9 12h7m-7 4h5',
   file: 'M6 3h9l4 4v14H6V3zm8 0v5h5',
+  image: 'M4 5h16v14H4V5zm0 9 4-4 4 4 3-3 5 5M15 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
   lock: 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5V11zm7 4v2',
   tool: 'M14.7 6.3a4 4 0 0 0-5.1 5.1L3.5 17.5l3 3 6.1-6.1a4 4 0 0 0 5.1-5.1l-2.4 2.4-2.6-.4-.4-2.6 2.4-2.4z',
   command: 'M8 16V8m8 8V8M8 8a2 2 0 1 1 2-2v12a2 2 0 1 1-2-2h8a2 2 0 1 1-2 2V6a2 2 0 1 1 2 2H8',

@@ -1,5 +1,6 @@
 package com.scaffold.framework.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -18,6 +19,10 @@ import java.util.UUID;
 public class JwtService {
 
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+
+    /** 令牌中的用户ID声明（userId），与 LoginUser.userId 对应 */
+    private static final String USER_ID_CLAIM = "userId";
+
     private final String secret;
     private final long expiresSeconds;
 
@@ -37,7 +42,7 @@ public class JwtService {
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(username)
-                .claim("userId", userId)
+                .claim(USER_ID_CLAIM, userId)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(expiresSeconds)))
                 .signWith(secretKey())
@@ -45,13 +50,23 @@ public class JwtService {
     }
 
     public String parseUsername(String token) {
+        LoginUser principal = parsePrincipal(token);
+        return principal == null ? null : principal.username();
+    }
+
+    /**
+     * 解析令牌中的登录主体（用户ID + 账号）；令牌无效时返回 null。
+     * userId 声明在旧版本令牌中可能缺失，此时为 null，由调用方按业务规则处理。
+     */
+    public LoginUser parsePrincipal(String token) {
         try {
-            return Jwts.parser()
+            Claims claims = Jwts.parser()
                     .verifyWith(secretKey())
                     .build()
                     .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
+                    .getPayload();
+            Object userId = claims.get(USER_ID_CLAIM);
+            return new LoginUser(userId instanceof Number number ? number.longValue() : null, claims.getSubject());
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("JWT解析失败: {}", ex.getMessage());
             return null;

@@ -40,6 +40,16 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 集成测试不需要人机验证码：答案只存 Redis，测试无法读图。生产默认仍为开启 -->
+                    <systemPropertyVariables>
+                        <scaffold.security.captcha.enabled>false</scaffold.security.captcha.enabled>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>

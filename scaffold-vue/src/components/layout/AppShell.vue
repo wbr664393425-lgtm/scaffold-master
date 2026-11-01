@@ -91,8 +91,11 @@ onBeforeUnmount(() => {
         />
         <main ref="content" class="content" tabindex="-1" @scroll.passive="onContentScroll">
           <router-view v-slot="{ Component }">
+            <!-- 过渡需要一个元素根：多根页面（列表 + 弹窗兄弟节点）直接放进来会让 out-in 卡死 -->
             <Transition mode="out-in" :css="false" appear @leave="pageLeave" @after-leave="content?.scrollTo({ top: 0 }); scrolled = false" @enter="pageEnter">
-              <component :is="Component" :key="route.path" />
+              <div :key="route.path" class="route-frame">
+                <component :is="Component" />
+              </div>
             </Transition>
           </router-view>
         </main>

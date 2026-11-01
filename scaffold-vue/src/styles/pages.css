@@ -108,7 +108,6 @@
 .cap-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--r-xs); color: var(--lime); background: rgba(130, 221, 45, .12); flex: none; }
 .cap-title { display: block; font-size: 12.5px; font-weight: 650; color: #fff; }
 .cap-desc { display: block; margin-top: 1px; font-size: 11.5px; color: rgba(255, 255, 255, .5); line-height: 1.45; }
-.login-foot { margin-top: 18px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; color: rgba(255, 255, 255, .36); }
 
 /* 右侧：珍珠舞台上的登录卡，随指针轻倾 */
 .login-side {
@@ -129,6 +128,22 @@
     radial-gradient(45% 40% at 80% 85%, var(--ambient-a), transparent 70%);
 }
 :root[data-theme="dark"] .login-side::before { background: radial-gradient(45% 40% at 80% 85%, var(--ambient-b), transparent 70%); }
+/* 版权与备案：左侧画布底部一行；窄屏画布退化成这条页脚 */
+.login-legal {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  color: rgba(255, 255, 255, .42);
+}
+.login-beian { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.login-beian a { color: rgba(255, 255, 255, .55); text-decoration: none; transition: color .2s ease; }
+.login-beian a:hover { color: #fff; }
+.login-beian a:focus-visible { outline: 2px solid rgba(255, 255, 255, .6); outline-offset: 3px; border-radius: var(--r-xs); }
 .login-card {
   position: relative;
   z-index: 1;
@@ -155,8 +170,8 @@
   color: var(--ink-soft);
   flex: none;
 }
-.captcha-code { display: inline-flex; gap: 4px; font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: .02em; }
-.captcha-code span { display: inline-block; }
+.captcha-img { width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-sm); }
+.captcha-box:disabled .captcha-img { opacity: .45; }
 .login-options { display: flex; align-items: center; justify-content: space-between; }
 .login-error {
   display: flex;
@@ -190,9 +205,29 @@
   .login-dial { display: none; }
 }
 @media (max-width: 960px) {
-  .login { grid-template-columns: minmax(0, 1fr); padding: 0; }
-  .login-canvas { display: none; }
-  .login-side { min-height: 100dvh; padding: 32px 16px; }
+  .login { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; padding: 0; }
+  /* 画布不再整块隐藏，而是退化成卡片下方的一条备案页脚 */
+  .login-canvas {
+    order: 2;
+    min-height: 0;
+    padding: 0 16px 22px;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .login-canvas > :not(.login-legal) { display: none; }
+  .login-side { min-height: 0; padding: 32px 16px; }
+  .login-legal {
+    margin-top: 0;
+    justify-content: center;
+    font-family: inherit;
+    font-size: 11.5px;
+    letter-spacing: 0;
+    color: var(--ink-faint);
+  }
+  .login-beian a { color: var(--ink-faint); }
+  .login-beian a:hover { color: var(--blue); }
+  .login-beian a:focus-visible { outline-color: var(--focus); }
 }
 @media (prefers-reduced-motion: reduce) {
   .login-card { will-change: auto; }
@@ -493,11 +528,22 @@
 .readout-strip .metric + .metric { border-left: 1px solid var(--line-strong); }
 .readout-strip .metric.is-alert .metric-figure { color: var(--red-text); }
 
+/* 读数条窄下来时按 3 列重排：内容宽度受侧栏挤压，靠 viewport 断点比 auto-fit 更可控；
+   行首不再画竖线，奇数项（5 项条的最后一项）跨两列补满末行，避免出现落单的一格 */
+@media (max-width: 1180px) {
+  .readout-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
+  .readout-strip .metric { padding: 0 14px; }
+  .readout-strip .metric:nth-child(3n + 1) { padding-left: 0; border-left: 0; }
+  .readout-strip .metric:nth-child(5):last-child { grid-column: span 2; }
+}
+
 @media (max-width: 760px) {
   .band { padding: 16px; border-radius: var(--r-lg); }
   .readout-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
   .readout-strip .metric { padding: 0 12px; }
   .readout-strip .metric:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .readout-strip .metric:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--line-strong); }
+  .readout-strip .metric:nth-child(5):last-child { grid-column: span 2; }
 }
 .cmd-ask { display: flex; flex-direction: column; gap: 10px; padding: 8px 4px 4px; }
 .cmd-ask-hint { margin: 0; font-size: 11.5px; }

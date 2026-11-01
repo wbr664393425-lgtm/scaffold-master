@@ -1,6 +1,8 @@
 """本地浏览器回归：登录竞态、菜单与按钮权限、旧账号请求晚到。
 
 需要已安装的 Python Playwright/Chromium 与运行中的前后端。
+后端必须以 CAPTCHA_ENABLED=false 启动（与 scaffold-admin 的 surefire 同一口径）：
+验证码答案只存 Redis、接口只回图片，脚本读不到答案，因此这里不在有验证码的实例上跑。
 创建并删除自己生成的测试角色/用户，建议连接独立校验库；不清空任何表。
 密码通过 SCAFFOLD_TEST_PASSWORD 传入，本地种子库默认使用开发账号。
 """
@@ -18,14 +20,16 @@ async def sign_in(page, username, password, destination=None):
     await page.wait_for_url("**/login**")
     await page.get_by_role("button", name="登录", exact=True).wait_for()
     await expect(page.get_by_role("button", name="登录", exact=True)).to_be_enabled()
-    async with page.expect_response("**/api/auth/captcha") as next_captcha:
-        await page.get_by_role("button", name="看不清，换一张", exact=True).click()
-    await next_captcha.value
-    await expect(page.get_by_role("button", name="看不清，换一张", exact=True)).to_be_enabled()
-    captcha = (await page.locator(".captcha-code").inner_text()).replace(" ", "").replace("\n", "")
+    # 验证码只回图片、答案不出服务端，因此本回归要求后端在 CAPTCHA_ENABLED=false 下运行。
+    # Login.vue 的 captchaEnabled 初值是 true，等 /api/auth/captcha 回 false 才撤掉输入位，
+    # 所以这里等它从 DOM 移除再判，不能立刻查存在——否则会把首屏瞬时渲染误读成开启了验证码。
+    captcha_box = page.get_by_role("button", name="看不清，换一张", exact=True)
+    try:
+        await captcha_box.wait_for(state="detached", timeout=8000)
+    except Exception:
+        raise RuntimeError("登录页仍渲染图形验证码：请用 CAPTCHA_ENABLED=false 启动后端后再跑本回归")
     await page.get_by_placeholder("请输入账号", exact=True).fill(username)
     await page.get_by_placeholder("请输入密码", exact=True).fill(password)
-    await page.get_by_placeholder("请输入右侧字符", exact=True).fill(captcha)
     await page.get_by_role("button", name="登录", exact=True).click()
     if destination:
         try:
@@ -64,8 +68,9 @@ async def main(base_url):
         role_id = user_id = None
         try:
             captcha = (await (await api.get("auth/captcha")).json())["data"]
+            assert captcha["captchaEnabled"] == "false", "后端未关闭验证码，本回归需在 CAPTCHA_ENABLED=false 下运行"
             response = await api.post("auth/login", data={"username": "admin", "password": password,
-                "captcha": captcha["code"], "captchaUuid": captcha["uuid"]})
+                "captcha": "", "captchaUuid": captcha["uuid"]})
             assert response.ok, "测试管理员登录失败"
             token = (await response.json())["data"]["token"]
             await api.dispose()
@@ -153,7 +158,8 @@ async def main(base_url):
             release_logout.set()
             await page.wait_for_load_state("networkidle")
             assert page.url.endswith("/dashboard"), "旧请求清除了新登录态"
-            assert await page.locator(".nav-item").count() == 11, "管理员菜单不完整"
+            # 工作台 + 系统管理 8（含资源监测）+ 两类日志 + 代码生成
+            assert await page.locator(".nav-item").count() == 12, "管理员菜单不完整"
             await page.unroute("**/api/health")
             await page.unroute("**/api/auth/logout")
             await sign_out(page)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useSlots } from 'vue'
+import { onMounted, ref, useSlots } from 'vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import Panel from '@/components/ui/Panel.vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
@@ -8,7 +8,7 @@ import IconButton from '@/components/ui/IconButton.vue'
 import Button from '@/components/ui/Button.vue'
 import SearchForm from './SearchForm.vue'
 import type { ListPageState } from '@/composables/list'
-import { floatBarEnter, floatBarLeave } from '@/composables/motion'
+import { floatBarEnter, floatBarLeave, revealPage } from '@/composables/motion'
 
 /* ============================================================
    统一列表页：页面头 → 查询区 → 表格面板（刷新 / 导出 / 批量条）→ 分页。
@@ -33,8 +33,12 @@ const props = withDefaults(defineProps<{
 
 const slots = useSlots()
 const isTree = 'tree' in props.list
+const root = ref<HTMLElement | null>(null)
 const table = ref<{ expandAll: () => void; collapseAll: () => void } | null>(null)
 const cellSlots = Object.keys(slots).filter(name => name.startsWith('cell-'))
+
+// 带弹窗兄弟节点的页面在 <Transition> 里是片段根，进场钩子不会触发，这里自己完成显现
+onMounted(() => revealPage(root.value))
 
 function clearSelection() {
   props.list.selected.value = []
@@ -42,7 +46,7 @@ function clearSelection() {
 </script>
 
 <template>
-  <div class="page">
+  <div ref="root" class="page">
     <PageHeader :title="title" :desc="desc">
       <template v-if="$slots.spec" #spec><slot name="spec" /></template>
       <slot name="actions" />

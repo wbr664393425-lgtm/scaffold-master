@@ -34,19 +34,32 @@ export function setSessionRouteReset(handler: () => void) {
 // 刷新页面后先用本地缓存的权限，随后由 refreshUser() 以服务端为准
 setPermissions(currentUser.value?.permissions ?? [])
 
-/** sys_menu.component 的取值必须在此登记 */
-const COMPONENT_MAP: Record<string, () => Promise<{ default: Component }>> = {
-  'dashboard/index': () => import('@/views/Dashboard.vue'),
-  'system/user/index': () => import('@/views/system/Users.vue'),
-  'system/role/index': () => import('@/views/system/Roles.vue'),
-  'system/menu/index': () => import('@/views/system/Menus.vue'),
-  'system/dept/index': () => import('@/views/system/Depts.vue'),
-  'system/post/index': () => import('@/views/system/Posts.vue'),
-  'system/dict/index': () => import('@/views/system/Dict.vue'),
-  'system/config/index': () => import('@/views/system/Configs.vue'),
-  'monitor/operlog/index': () => import('@/views/monitor/OperLog.vue'),
-  'monitor/loginlog/index': () => import('@/views/monitor/LoginLog.vue'),
-  'tool/gen/index': () => import('@/views/tool/Generator.vue'),
+/**
+ * sys_menu.component 的解析规则：
+ * 1. 底座既有页面的文件名与 component 值不同名，保留显式别名；
+ * 2. 其余页面按 `views/<component>.vue` 约定自动解析（例如 system/notice/index
+ *    对应 views/system/notice/index.vue），新增页面无需再改动本文件。
+ */
+const VIEW_MODULES = import.meta.glob('../views/**/*.vue') as Record<string, () => Promise<{ default: Component }>>
+
+const COMPONENT_ALIAS: Record<string, string> = {
+  'dashboard/index': '../views/Dashboard.vue',
+  'system/user/index': '../views/system/Users.vue',
+  'system/role/index': '../views/system/Roles.vue',
+  'system/menu/index': '../views/system/Menus.vue',
+  'system/dept/index': '../views/system/Depts.vue',
+  'system/post/index': '../views/system/Posts.vue',
+  'system/dict/index': '../views/system/Dict.vue',
+  'system/config/index': '../views/system/Configs.vue',
+  'monitor/operlog/index': '../views/monitor/OperLog.vue',
+  'monitor/loginlog/index': '../views/monitor/LoginLog.vue',
+  'tool/gen/index': '../views/tool/Generator.vue',
+}
+
+function resolveComponent(component: string | undefined) {
+  if (!component) return undefined
+  const target = COMPONENT_ALIAS[component] ?? `../views/${component}.vue`
+  return VIEW_MODULES[target]
 }
 
 /** 路由名由路径推导：/system/user → system-user */
@@ -61,7 +74,7 @@ function normalizePath(path?: string) {
 
 function leafOf(item: RouteItem): NavLeaf | null {
   const path = normalizePath(item.path)
-  if (!path || !item.component || !COMPONENT_MAP[item.component]) return null
+  if (!path || !resolveComponent(item.component)) return null
   return { key: routeNameOf(path), label: item.name, icon: item.icon || 'file', path }
 }
 
@@ -87,12 +100,16 @@ function buildRoutes(groups: NavGroup[], tree: RouteItem[]): RouteRecordRaw[] {
     walk(node.children ?? [])
   })
   walk(tree)
-  return groups.flatMap(group => group.items.map(item => ({
-    path: item.path.replace(/^\//, ''),
-    name: item.key,
-    component: COMPONENT_MAP[componentByPath.get(item.path) ?? ''],
-    meta: { title: item.label, group: group.single ? undefined : group.label },
-  })))
+  return groups.flatMap(group => group.items.flatMap(item => {
+    const loader = resolveComponent(componentByPath.get(item.path))
+    if (!loader) return []
+    return [{
+      path: item.path.replace(/^\//, ''),
+      name: item.key,
+      component: loader,
+      meta: { title: item.label, group: group.single ? undefined : group.label },
+    }]
+  }))
 }
 
 export async function loadRoutes() {
