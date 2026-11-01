@@ -94,11 +94,12 @@
 ## 组件与页面
 
 - 列表使用 `ListPage` 与 `useListPage`，树列表使用 `useTreeListPage`；提供业务列定义、查询字段、操作和单元格插槽。
-- 表单使用 `FormDialog`、`Field`、`TextInput`、`Select`、`Switch`、`Checkbox`；提交时显示真实等待状态，错误留在相应字段或统一提示中。
-- 权限操作使用 `PermissionButton`，后端使用相同权限码；前端隐藏不能替代后端校验。
+- 表单使用 `FormDialog`、`Field`、`TextInput`、`NumberInput`、`Textarea`、`Select`、`TreeSelect`、`DateInput`、`DateRangePicker`、`Switch`、`Checkbox`；提交时显示真实等待状态，错误留在相应字段或统一提示中。日期与区间只在 `YYYY-MM-DD` / `YYYY-MM-DD~YYYY-MM-DD` 两形态间切换，空值一律提交 `undefined`（不传等同清空，避免把空串写进后端）；区间两端共享同一锚点，画完起点可直接拖选终点。
+- 权限操作使用 `PermissionButton`，后端使用相同权限码；前端隐藏不能替代后端校验。行内动作密度交 `RowActions` + `RowMenuItem`：前几个平铺图标按钮，其余进「更多」下拉，菜单项同样按权限码整体不渲染。
 - 字典与引用数据使用 `DictSelect`、`DictTag`、`DeptTree`、`DeptSelect`、`UserSelect`；部门组件支持传入已有选项，避免重复请求管理接口。
-- 读数用 `Metric` / `Odometer`，分区用 `SectionLabel`，只读汇总用 `SpecPlate`（不与同页读数重复），环比用 `DeltaPill`（上一周期为 0 时传 `fresh` 显示「新增」，不显示误导的 +100%）；图表统一放在 `components/charts`，不引入图表库；趋势图在稀疏数据时自动改画茎叶点并直接标数值。
-- 表格操作列（`className: 'col-actions'`）吸附在右侧，横向滚动时行操作始终可见。
+- 读数用 `Metric` / `Odometer`，分区用 `SectionLabel`，只读汇总用 `SpecPlate`（不与同页读数重复）或 `Descriptions` + `DescriptionsItem`（复用 `.kv-grid` 材质，配 `Panel` 的 `padded`，用于详情弹窗 / 抽屉 / 资源读数）；环比用 `DeltaPill`（上一周期为 0 时传 `fresh` 显示「新增」，不显示误导的 +100%）；图表统一放在 `components/charts`，不引入图表库；趋势图在稀疏数据时自动改画茎叶点并直接标数值，百分比一类有界序列传 `max` 锁定纵轴上限（自适应会把轴抬到 150% 这种读不通的刻度）。
+- 表格两列吸附：操作列（`className: 'col-actions'`）吸右、勾选列（`col-check`）吸左，横向滚动时行操作与选择状态始终可见；吸附列用 `--surface-solid` 不透明底并补 `tr:hover` / `tr.is-selected` 叠色，否则行底色会被列底色盖住。横向溢出只保留滚动能力、不画滚动条（`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`），触控板横扫、Shift + 滚轮、触屏拖动照常；滚出原点后面板给勾选列加一条内阴影提示吸附生效。
+- 页面内容超宽时由 `.content` 兜底横滚（`overflow-x: auto` + `min-width: 0`，`.route-frame` 同步可收缩），不在深色外框处被直接裁掉；表格仍在自己的 `.table-wrap` 内滚动。
 - 勾选后的批量操作、矩阵未保存改动统一用底部深色玻璃浮条（`.float-bar`），`#batch` 插槽 API 不变。
 - 头像等只读预览用 `HoverCard`（悬停 300 ms 或键盘聚焦出现，Escape 关闭）。
 - 多层浮层共用 `focus.ts`：后来打开的浮层置顶，键盘焦点与 Escape 只作用于最上层；关闭后恢复到触发控件。
@@ -108,7 +109,7 @@
 
 `composables/appearance.ts` 管理浅色、深色、跟随系统，写入根元素 `data-theme`；密度写入 `data-density`。偏好保存在 `scaffold.appearance`，账号切换只清理会话数据。
 
-已有外壳断点以 `layout.css` 为准；820 px 以下侧栏改为抽屉式导航，点击遮罩或选择菜单收起。窄屏表格在自身容器内水平滚动，页面整体不横向溢出；表单、标题和操作按钮可换行，主操作保持可达。
+已有外壳断点以 `layout.css` 为准；820 px 以下侧栏改为抽屉式导航，点击遮罩或选择菜单收起。窄屏表格在自身容器内水平滚动，页面整体不横向溢出；表单、标题和操作按钮可换行，主操作保持可达。读数条（`.readout-strip`）在 1180 px 以下按 3 列重排、760 px 以下按 2 列重排，行首不再画竖线、落单的奇数项跨两列补满末行；断点按内容宽度而不是视口画，因为侧栏会挤掉读数条的可用宽度。登录页 960 px 以下左侧画布不再整块隐藏，而是退化成登录卡下方的一条版权与备案页脚（品牌文案与备案条目全部读 `data/index.ts` 的 `APP`，换品牌只改这一处）。
 
 ## 动效与键盘
 

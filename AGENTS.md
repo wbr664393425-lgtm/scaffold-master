@@ -13,7 +13,7 @@
 
 - 所有可复用的前端能力必须组件化，不允许在每个页面重复实现。
 - 所有后台页面必须遵守同一套设计语言，包括颜色、字体、字号、间距、圆角、边框、阴影、表格密度、按钮样式、弹窗样式和表单样式。
-- 页面开发优先复用 `ListPage`、`useListPage` / `useTreeListPage`、`DataTable`、`SearchForm`、`FormDialog`、`PermissionButton`、`DictSelect`、`DeptTree`、`DeptSelect`、`UserSelect`、`PermissionTree`，不在页面重复拼装公共列表、表单或浮层能力。
+- 页面开发优先复用 `ListPage`、`useListPage` / `useTreeListPage`、`DataTable`、`SearchForm`、`FormDialog`、`RowActions` / `RowMenuItem`、`PermissionButton`、`DictSelect`、`DeptTree`、`DeptSelect`、`UserSelect`、`PermissionTree`、`TreeSelect`、`DateInput` / `DateRangePicker`、`NumberInput` / `Textarea`、`Tabs` / `TabPane`、`Upload` / `Photo` / `ImageField`、`Descriptions` / `DescriptionsItem`，以及 `usePopover`、`dateValue`、`upload` 三个 composable，不在页面重复拼装公共列表、表单、日期、上传或浮层能力。
 - 所有列表页默认具备查询、重置、分页、导出、状态展示、行操作等通用能力；新增列表页面时不得遗漏这些能力，除非明确说明业务上不需要。
 - 所有导出能力必须优先复用统一导出工具或统一表格组件，不允许每个页面临时实现一套导出逻辑。
 - 页面只负责业务字段、业务动作和模块差异；通用交互、样式和布局必须沉淀到组件、样式变量或工具函数中。

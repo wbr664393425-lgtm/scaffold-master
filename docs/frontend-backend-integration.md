@@ -6,6 +6,8 @@
 
 普通 JSON 响应为 `code`（结果码）、`message`（提示）、`data`（业务内容）、`traceId`（追踪 ID）；HTTP 与业务码均成功时客户端返回 `data`，错误抛出 `ApiError`。CSV 与 ZIP 使用文件响应。
 
+文件下载有两种传参方式，共用同一套 Bearer 鉴权与 401 处理：`download(path, query)` 走 GET + 查询串，`downloadForm(path, form)` 走 POST + `application/x-www-form-urlencoded`（导出接口条件多、查询串过长时用后者，与旧后端的 `$download.post` 同口径）。两者都以 `Accept` 声明期望 xlsx / 八位流，失败时先按 JSON 信封解析出 `message` 再抛 `ApiError`。
+
 | 字段 | 中文含义 |
 | --- | --- |
 | `pageNum` / `pageSize` | 页码 / 每页数量；默认 1 / 10，每页最多 100 |
@@ -37,9 +39,9 @@
 
 ## 登录与权限
 
-登录请求包含 `username`（账号）、`password`（密码）、`captcha`（验证码字符）、`captchaUuid`（验证码标识）。成功返回 `token`（会话凭据）、`expiresIn`（有效秒数）；后续请求附加 Bearer token。
+`GET /auth/captcha` 返回 `captchaEnabled`（是否启用验证码，字符串 `true` / `false`）、`uuid`（验证码标识）、`img`（base64 PNG 图片，已拼好 `data:image/png;base64,` 前缀；关闭时为 `null`）。答案只写 Redis（key 前缀 `captcha:`，5 分钟过期），验证时取出即删，明文不回传前端，因此前端也无法把答案预填进登录请求。登录请求包含 `username`（账号）、`password`（密码）、`captcha`（用户输入的验证码字符）、`captchaUuid`（验证码标识）。`scaffold.security.captcha.enabled=false` 时 `verify` 直接放行、`generate` 不写 Redis，登录页据此不渲染验证码输入框。成功返回 `token`（会话凭据）、`expiresIn`（有效秒数）；后续请求附加 Bearer token。
 
-`/auth/me` 返回当前用户、启用角色与权限，`/auth/routes` 返回授权菜单树。前端仅对 `COMPONENT_MAP` 注册的组件生成可见导航和页面路由，无菜单进入 `/no-access`；直接访问未授权页面不加载对应业务页面。
+`/auth/me` 返回当前用户、启用角色与权限，`/auth/routes` 返回授权菜单树。前端先查 `COMPONENT_ALIAS` 显式别名（底座页面文件名与 `sys_menu.component` 不同名者），再按 `views/<component>.vue` 目录约定用 `import.meta.glob` 自动解析，解析不到的条目跳过不注册，无菜单进入 `/no-access`；直接访问未授权页面不加载对应业务页面。
 
 按钮权限与 `@RequiresPermission` 使用同一权限码；数据范围由后端查询 / 导出执行。停用或删除角色不提供权限，前端隐藏操作不能代替后端 403 校验。
 
@@ -87,6 +89,22 @@
 | `menus[].id` / `parentId` / `name` / `type` / `permission` | 菜单 ID / 父级 / 名称 / 类型（目录、菜单、按钮）/ 权限码 |
 | `userRoles` / `roleMenus` | 用户-角色、角色-菜单 `[from, to]` 关联对 |
 
+`GET /system/resource`（权限 `system:resource:list`，只读，不落库不建表）供系统管理「资源监测」页使用。利用率一律为百分数，**采不到时回传 `-1`**，页面显示「—」而不是 0%；字节数一律为原始 bytes，由前端按 1024 进制换算。
+
+| 字段 | 中文含义 |
+| --- | --- |
+| `collectedAt` | 采集时刻（`yyyy-MM-dd HH:mm:ss`，服务器本地时区） |
+| `server` | 主机与运行时：`hostname` 主机名、`hostIp` 本机地址、`osName` / `osVersion` / `osArch` 系统名 / 版本 / 架构、`cpuCores` 可用核数、`javaVersion` / `javaVendor` JVM 版本 / 厂商、`pid` 进程号、`zone` 时区、`startTime` 启动时刻、`uptimeSeconds` 运行秒数 |
+| `cpu` | `cores` 核数、`processUsage` 本进程占用（macOS 取不到瞬时值，按两次采样的进程 CPU 时间差 / 墙钟差折算并对全部核归一）、`systemUsage` 整机占用、`systemUsageEstimated` 为 `true` 表示整机占用由 1 分钟负载折算、`loadAverage` 1 分钟负载（取不到为 `null`） |
+| `memory` | `total` / `used` / `free` 物理内存总量 / 已用 / 空闲、`usage` 使用率、`swapTotal` / `swapUsed` / `swapUsage` 交换分区 |
+| `jvm` | `heapUsed` / `heapCommitted` / `heapMax` / `heapUsage` 堆已用 / 已提交 / 上限 / 占用率、`nonHeapUsed` 非堆、`gcCount` / `gcTimeMs` GC 次数 / 耗时合计、`collectors[]` 各收集器 `name` / `count` / `timeMs`、`threads` / `peakThreads` / `daemonThreads` 线程数 / 峰值 / 守护、`loadedClasses` / `totalLoadedClasses` / `unloadedClasses` 类加载、`openFileDescriptors` / `maxFileDescriptors` 文件描述符（仅类 Unix 主机有） |
+| `disks[]` | 各挂载点 `path` / `total` / `used` / `free` / `usage` |
+| `redis` | `online` 是否连通、`error` 失败原因（降级时给出）、`pingMicros` PING 往返微秒、`version` / `mode` / `os` 版本 / 模式 / 系统、`uptimeSeconds` 运行秒数、`usedMemory` / `usedMemoryHuman` / `usedMemoryPeak` / `maxMemory` / `maxMemoryPolicy` 内存与淘汰策略、`fragmentRatio` 碎片率、`connectedClients` / `blockedClients` 客户端数、`opsPerSec` 每秒命令数、`totalCommands` / `rejectedConnections` / `expiredKeys` / `evictedKeys` 累计命令 / 拒绝连接 / 过期 / 淘汰键、`dbSize` 键总数、`hitRate` 命中率（越高越好，前端反向判档）、`keyspace[]` 各库 `db` / `keys` / `expires` |
+| `database.pool` | HikariCP 池水位，读自连接池自身的 MXBean，**不需要数据库权限**：`online` / `error`、`name` 池名、`max` / `minIdle` 上限 / 最小空闲、`timeoutMs` 取连接最长等待、`active` / `idle` / `total` 活跃 / 空闲 / 总连接、`awaiting` 排队等连接的线程数（持续大于 0 说明池不够用）、`usage` 占用率 |
+| `database.mysql` | `SHOW GLOBAL STATUS` / `VARIABLES` 读数，**需要 PROCESS 权限**，受限账号下只有这一段降级：`version`、`uptimeSeconds`、`threadsConnected` / `threadsRunning` 当前 / 运行中连接、`maxConnections` 上限、`peakConnections` 历史峰值、`connectionUsage` 会话占用率、`slowQueries` 慢查询累计、`questions` / `qps` 语句总数 / 每秒、`connections` / `abortedConnects` 累计 / 中断连接、`bufferPoolBytes` InnoDB 缓冲池、`waitTimeout` 空闲会话超时；`schema` 当前库 `name` / `tables` / `dataBytes` / `indexBytes` / `rowEstimate` |
+
+容器内部署时 `cpu` / `memory` 是宿主机读数（容器看不到 cgroup 配额），页面在页脚 `.hint` 说明该口径，避免误读。
+
 `/monitor/login-logs/heatmap?days=7|30`（权限 `monitor:loginlog:list`）：
 
 | 字段 | 中文含义 |
@@ -114,6 +132,6 @@
 
 ## 验证入口
 
-后端集成测试通过真实验证码契约登录，覆盖认证、接口权限、数据范围、管理写入、日志、日志统计与泳道、工作台与生成器；前端单测验证统一请求与契约。`scaffold-vue/scripts/session-regression.py` 验证浏览器中的旧请求晚到、慢退出、低权限与无菜单账号。
+后端集成测试在 `scaffold.security.captcha.enabled=false` 下运行（`scaffold-admin` 的 surefire 以系统属性注入），登录夹具改为断言该开关已关闭并提交空验证码——答案只在 Redis 里，测试读不了图；覆盖认证、接口权限、数据范围、管理写入、日志、日志统计与泳道、工作台与生成器；前端单测验证统一请求与契约。`scaffold-vue/scripts/session-regression.py` 验证浏览器中的旧请求晚到、慢退出、低权限与无菜单账号。
 
 测试使用独立本地数据库；变更公共能力后补受影响页面的实际操作验证。
