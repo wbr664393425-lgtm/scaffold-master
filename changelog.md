@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-01（Docker 部署）
+
+- **交付口径变化**：AGENTS.md 的部署段原写「当前交付范围为本地开发底座，不包含部署」，本次按用户明确要求补上单主机自托管的 Docker 部署，该段已改写为指向 `docs/docker-deployment.md`，并把边界划到「域名、TLS、多副本与云端编排不在默认交付范围内」；**只加容器编排，不改任何业务代码、不加任何 Maven / npm 依赖**。
+- **编排**：`docker-compose.yml` 提供前端 nginx、后端 jar、Redis 三个常驻服务，MySQL 放进 `mysql` profile 默认不启动，避免与本机已有数据库抢端口；`deploy/mysql-client.cnf` 与 `.env.example` 配套。变量拆分口径：`DB_PORT` 是后端连库的端口，`MYSQL_HOST_PORT` 是内置 MySQL 映射到宿主机的端口，两者不复用同一个语义（否则外部模式下 `DB_HOST=host.docker.internal` 会连到错误端口）。`backend` 对 `mysql` 用 `depends_on` + `required: false` 的可选依赖：启用 profile 时等 MySQL 健康再启动，不带 profile 时自动跳过，不会反向把数据库拉起来。
+- **冷启动竞态**：首版编排里后端只依赖 Redis，`up -d --profile mysql` 会让后端早于 MySQL 就绪启动，日志出现 `java.net.ConnectException: Connection refused`，且 `/api/health` 不探测数据库、仍报 healthy，前端被放行后首个业务请求返回 500（Hikari 懒初始化，随后自动恢复）。改用可选依赖后同样的启动序列里连接拒绝为 0 条。
+- **镜像**：`scaffold-system/Dockerfile` 用 `maven:3.9-eclipse-temurin-17` 构建、`eclipse-temurin:17-jre-jammy` 运行，运行层另装 `curl` 专供容器健康检查，`ENTRYPOINT` 预留 `JAVA_OPTS`；`scaffold-vue/Dockerfile` 用 `node:22-alpine` 跑 `npm run build`（含 `vue-tsc` 类型检查）、`nginx:1.27-alpine` 托管。两处 `.dockerignore` 排除 `target/`、`node_modules/`、`dist/`，构建上下文不再携带本机产物。两个 Dockerfile 都不写 `# syntax=docker/dockerfile:1`：没有用到 BuildKit 专属特性，写上只会多一次跨网拉 syntax 镜像的失败点。
+- **前端反代**：`scaffold-vue/nginx.conf` 把 `/api` 转发到 `backend:8080` 并带上 `X-Real-IP` / `X-Forwarded-*`（与回迁的 `IpUtils` 代理头解析口径一致）、SPA 深链接回退 `index.html`、`/assets/` 长缓存、开 gzip。生产前端继续走相对 `/api`，不需要新的环境变量。
+- **踩到的两个坑**：① `COPY --from=build dist` 在本机 BuildKit 下报 `"/dist": not found`，改为绝对路径 `/build/dist` 后通过；② 内置 MySQL 首次建卷导入 SQL 时，官方镜像容器内 locale 为 `C`，客户端默认按 latin1 解析 UTF-8 字节，种子中文被二次编码存库（`sys_user.nickname` 入库为 `C3A5E28098…`，页面显示「å‘¨æ˜Žè¿œ」），挂 `deploy/mysql-client.cnf` 固定 `[client] default-character-set=utf8mb4` 后同一行入库为 `E591A8E6988EE8BF9C`，与「周明远」的 UTF-8 字节一致。
+- **本机网络**：Docker 守护进程不读宿主机 shell 代理变量，基础镜像直连 Docker Hub 超时。为完成构建在 `~/.docker/daemon.json` 加了 `registry-mirrors`（daocloud、1ms.run）并在 Docker Desktop 设置里开了手工代理（`ProxyHTTPMode=manual` 才生效，只写 `HttpProxy` 无效），属于本机环境配置、未写入仓库。
+- **验证**：全部用独立 project name、独立卷、错开端口（`WEB_PORT=8181/8182/8183/8186` 与默认 80、`MYSQL_HOST_PORT=3316~3322`）的临时实例跑通，**未读写本机业务库 `scaffold_system`**；结束后逐个 `down -v` 清理容器与卷，本机 `scaffold-mysql`、`dsh` 容器全程正常。后端镜像 471 MB、前端镜像 77 MB；`docker compose config` 在带 / 不带 `mysql` profile 下均通过；不带 profile 单起 `redis backend` 确认 MySQL 不被可选依赖反向拉起。接口链路实测：`/api/health` 返回 `status=UP` 且时间为 `+08:00`、`/api/auth/captcha` 返回 base64 PNG、无令牌访问列表 401、验证码开启时缺验证码登录被拒（`code=400 验证码错误或已过期`）、SPA 深链接 `/system/user`、`/tool/generator`、`/monitor/operlog` 均回退 200、导出接口返回带中文表头与中文数据的 `text/csv`。关掉验证码后完成真实登录：拿到 token、`/api/auth/me` 返回 35 条权限、`/api/auth/routes` 返回四个顶级路由、`/api/system/users` 返回 3 条种子用户。浏览器实测登录页 → 工作台 → 用户管理表格渲染出「周明远 / 平台架构部」，控制台无报错；验证码开启形态下登录页的 `img` 实测渲染出 130×44 的 PNG。字符集回归：修复前 `sys_user.nickname` 入库为 `C3A5E28098…`（双重编码），修复后为 `E591A8E6988EE8BF9C`，与「周明远」的 UTF-8 字节一致，`sys_menu` 39 行导入完整。外部库路径在依赖顺序改动后重验：`DB_HOST=host.docker.internal` + `DB_PORT` 与 `MYSQL_HOST_PORT` 同值时登录成功且 `sys_login_log` 真实落库，后端日志零条连接拒绝。验证过程中因漏设 `DB_PORT` 让一次测试请求打到了宿主机 3306，已核实业务库里既没有该测试库也没有任何新增写入，该陷阱已写入部署指南。本次为接口与页面渲染验证，未做压测与多副本编排。
+- **文档**：新增 `docs/docker-deployment.md`（前置条件、两条启动路线、环境变量中文口径、运维命令、验证方法、受限网络排障、验证记录），README 开发入口与 PROJECT_MAP 模块文件地图同步登记部署链路。
 ## 2026-10-11（MIT 开源发布）
 
 - 以当前代码建立独立的公开版本快照，采用 MIT License；第三方依赖保留各自许可，README 单独说明 GSAP 许可。

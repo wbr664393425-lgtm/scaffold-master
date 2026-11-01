@@ -8,6 +8,7 @@
 - [设计规范](DESIGN.md)：珍珠玻璃主题、组件复用及交互规范。
 - [开发约定](AGENTS.md)、[更新日志](changelog.md)。
 - [后端架构](docs/backend-architecture.md)、[前后端接口约定](docs/frontend-backend-integration.md)、[前端架构](docs/admin-redesign-architecture.md)。
+- [Docker 部署指南](docs/docker-deployment.md)：Compose 一键编排前端 / 后端 / Redis / 可选 MySQL。
 
 ## 目录与技术栈
 
@@ -59,6 +60,8 @@ npm run dev
 ```
 
 浏览器访问 `http://localhost:5173`，后端本地端口为 `8080`；前端统一通过 `/api` 代理访问后端。
+
+需要整套容器化部署（前端 nginx + 后端 + Redis + 可选 MySQL）时见 [Docker 部署指南](docs/docker-deployment.md)，本机开发仍按上面的命令启动。
 
 种子库管理员为 `admin`，开发密码为 `admin123`；仅用于本地开发，接入实际环境前请修改密码并配置自己的数据库与 Redis 凭据。种子组织和用户为示例，电话留空，邮箱使用 `example.com`。验证码使用页面显示的字符。超级管理员可见全部启用且可见的已注册菜单，并拥有全部操作权限；其余种子角色默认未授予菜单，需在角色管理中分配。无可用菜单的账号登录后显示“暂未分配可用菜单”。
 
