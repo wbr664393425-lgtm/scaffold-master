@@ -180,6 +180,113 @@ export interface PermissionGraph {
   usersVisible: boolean
 }
 
+/**
+ * 资源监测实时读数。利用率字段统一为百分数，后端采不到时返回 -1（页面显示「—」），
+ * 字节数一律为原始 bytes，由页面按 1024 进制换算显示。
+ */
+export interface ResourceSnapshot {
+  collectedAt: string
+  server: {
+    hostname: string
+    hostIp: string
+    osName: string
+    osVersion: string
+    osArch: string
+    cpuCores: number
+    javaVersion: string
+    javaVendor: string
+    pid: number
+    zone: string
+    startTime: string
+    uptimeSeconds: number
+  }
+  cpu: { cores: number; processUsage: number; systemUsage: number; /** true 表示整机占用由 1 分钟负载折算（macOS 取不到瞬时值） */ systemUsageEstimated: boolean; loadAverage: number | null }
+  memory: { total: number; used: number; free: number; usage: number; swapTotal: number; swapUsed: number; swapUsage: number }
+  jvm: {
+    heapUsed: number
+    heapCommitted: number
+    heapMax: number
+    heapUsage: number
+    nonHeapUsed: number
+    gcCount: number
+    gcTimeMs: number
+    collectors: Array<{ name: string; count: number; timeMs: number }>
+    threads: number
+    peakThreads: number
+    daemonThreads: number
+    loadedClasses: number
+    totalLoadedClasses: number
+    unloadedClasses: number
+    /** 类 Unix 主机才有 */
+    openFileDescriptors?: number
+    maxFileDescriptors?: number
+  }
+  disks: Array<{ path: string; total: number; used: number; free: number; usage: number }>
+  redis: {
+    online: boolean
+    error?: string | null
+    pingMicros?: number | null
+    version?: string
+    mode?: string
+    os?: string
+    uptimeSeconds?: number
+    usedMemory?: number
+    usedMemoryHuman?: string
+    usedMemoryPeak?: number
+    maxMemory?: number
+    maxMemoryPolicy?: string
+    fragmentRatio?: number
+    connectedClients?: number
+    blockedClients?: number
+    opsPerSec?: number
+    totalCommands?: number
+    rejectedConnections?: number
+    expiredKeys?: number
+    evictedKeys?: number
+    dbSize?: number
+    hitRate?: number
+    keyspace?: Array<{ db: string; raw: string; keys: number; expires: number }>
+  }
+  database: {
+    /** HikariCP 池水位，读自连接池自身的 MXBean，不需要数据库权限 */
+    pool: {
+      online: boolean
+      error?: string | null
+      name?: string
+      max?: number
+      minIdle?: number
+      /** 取连接的最长等待（ms） */
+      timeoutMs?: number
+      active?: number
+      idle?: number
+      total?: number
+      /** 正在排队等连接的线程数，持续大于 0 说明池已不够用 */
+      awaiting?: number
+      usage?: number
+    }
+    /** MySQL 全局状态，读 SHOW GLOBAL STATUS 需要 PROCESS 权限，受限账号下会单独降级 */
+    mysql: {
+      online: boolean
+      error?: string | null
+      version?: string
+      uptimeSeconds?: number
+      threadsConnected?: number
+      threadsRunning?: number
+      maxConnections?: number
+      peakConnections?: number
+      connectionUsage?: number
+      slowQueries?: number
+      questions?: number
+      qps?: number
+      connections?: number
+      abortedConnects?: number
+      bufferPoolBytes?: number
+      waitTimeout?: number
+      schema?: { name: string; tables: number; dataBytes: number; indexBytes: number; rowEstimate: number }
+    }
+  }
+}
+
 export function createSystemApi(client: HttpClient) {
   return {
     users: {
@@ -196,6 +303,9 @@ export function createSystemApi(client: HttpClient) {
     },
     permissions: {
       graph: () => client.get<PermissionGraph>('/system/permissions/graph'),
+    },
+    resource: {
+      snapshot: () => client.get<ResourceSnapshot>('/system/resource'),
     },
     menus: {
       tree: (query?: QueryParams) => client.get<Record<string, unknown>[]>('/system/menus/tree', query),
